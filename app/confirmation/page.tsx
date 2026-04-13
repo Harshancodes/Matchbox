@@ -119,6 +119,12 @@ function ConfirmationPage() {
         >
           Book Another Slot
         </button>
+        <button
+          onClick={() => router.push(`/cancel?id=${booking.booking_id}`)}
+          className="w-full py-3 rounded-full border-2 border-red-200 text-red-500 font-semibold text-sm hover:bg-red-50 transition-all cursor-pointer"
+        >
+          Cancel This Booking
+        </button>
       </div>
 
       <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3 text-sm text-yellow-800 text-center">
