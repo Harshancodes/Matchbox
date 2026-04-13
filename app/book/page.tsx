@@ -136,7 +136,13 @@ function BookPage() {
       {/* Step 1: Date */}
       <section className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
         <h3 className="font-semibold text-gray-700 mb-3">1. Choose Date</h3>
-        <DatePicker selected={date} onChange={(d) => { setDate(d); setStartTime(null); setDuration(null); }} />
+        <DatePicker
+          selected={date}
+          onChange={(d) => { setDate(d); setStartTime(null); setDuration(null); }}
+          category={category!}
+          location={location!}
+          courtType={courtType!}
+        />
       </section>
 
       {/* Availability timeline */}
