@@ -22,7 +22,9 @@ function ConfirmationPage() {
   }, [bookingId, router]);
 
   function buildCalendarUrl(b: Booking) {
-    const sportLabel = b.sport.charAt(0).toUpperCase() + b.sport.slice(1);
+    const COURT_LABELS: Record<string, string> = { full: 'Full Court', left_half: 'Left Half', right_half: 'Right Half', court_1: 'Court 1', court_2: 'Court 2', court_3: 'Court 3', court_4: 'Court 4' };
+    const typeLabel = b.category === 'pickleball' ? 'Pickleball' : `Ground — ${COURT_LABELS[b.court_type] ?? b.court_type}`;
+    const locationLabel = b.location.charAt(0).toUpperCase() + b.location.slice(1);
     const [yr, mo, dy] = b.date.split('-').map(Number);
     const [sh, sm] = b.start_time.split(':').map(Number);
     const [eh, em] = b.end_time.split(':').map(Number);
@@ -31,7 +33,7 @@ function ConfirmationPage() {
     const start = `${yr}${pad(mo)}${pad(dy)}T${pad(sh)}${pad(sm)}00`;
     const end = `${yr}${pad(mo)}${pad(dy)}T${pad(eh)}${pad(em)}00`;
 
-    const title = encodeURIComponent(`${sportLabel} at Matchbox Ground`);
+    const title = encodeURIComponent(`${typeLabel} at Matchbox ${locationLabel}`);
     const details = encodeURIComponent(`Booking ID: #${b.booking_id}\nPhone: ${b.phone}`);
     return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${start}/${end}&details=${details}`;
   }
@@ -45,8 +47,11 @@ function ConfirmationPage() {
     </div>
   );
 
-  const sportLabel = booking.sport.charAt(0).toUpperCase() + booking.sport.slice(1);
-  const SPORT_EMOJI: Record<string, string> = { cricket: '🏏', football: '⚽', badminton: '🏸' };
+  const COURT_LABELS: Record<string, string> = { full: 'Full Court', left_half: 'Left Half', right_half: 'Right Half', court_1: 'Court 1', court_2: 'Court 2', court_3: 'Court 3', court_4: 'Court 4' };
+  const typeLabel = booking.category === 'pickleball' ? 'Pickleball' : 'Ground';
+  const courtLabel = COURT_LABELS[booking.court_type] ?? booking.court_type;
+  const locationLabel = booking.location.charAt(0).toUpperCase() + booking.location.slice(1);
+  const emoji = booking.category === 'pickleball' ? '🏓' : '🏟️';
 
   return (
     <div className="space-y-6 max-w-md mx-auto">
@@ -60,9 +65,10 @@ function ConfirmationPage() {
       {/* Booking details */}
       <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm space-y-3">
         <div className="flex items-center gap-2 mb-1">
-          <span className="text-3xl">{SPORT_EMOJI[booking.sport]}</span>
+          <span className="text-3xl">{emoji}</span>
           <div>
-            <p className="font-bold text-gray-800 text-lg">{sportLabel}</p>
+            <p className="font-bold text-gray-800 text-lg">{typeLabel} — {courtLabel}</p>
+            <p className="text-xs text-gray-500">📍 {locationLabel}</p>
             <p className="text-xs text-gray-400 font-mono">Booking #{booking.booking_id}</p>
           </div>
         </div>

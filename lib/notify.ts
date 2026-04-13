@@ -1,6 +1,16 @@
 import { Booking } from './types';
 import { formatDate, formatTime } from './utils';
 
+const COURT_LABELS: Record<string, string> = {
+  full: 'Full Court',
+  left_half: 'Left Half',
+  right_half: 'Right Half',
+  court_1: 'Court 1',
+  court_2: 'Court 2',
+  court_3: 'Court 3',
+  court_4: 'Court 4',
+};
+
 export async function notifyTeam(booking: Booking): Promise<void> {
   const phone = process.env.CALLMEBOT_PHONE;
   const apikey = process.env.CALLMEBOT_APIKEY;
@@ -10,11 +20,16 @@ export async function notifyTeam(booking: Booking): Promise<void> {
     return;
   }
 
-  const sportLabel = booking.sport.charAt(0).toUpperCase() + booking.sport.slice(1);
+  const emoji = booking.category === 'pickleball' ? '🏓' : '🏟️';
+  const typeLabel = booking.category === 'pickleball' ? 'Pickleball' : 'Ground';
+  const locationLabel = booking.location.charAt(0).toUpperCase() + booking.location.slice(1);
+  const courtLabel = COURT_LABELS[booking.court_type] ?? booking.court_type;
+
   const message = [
-    '🏟️ New Ground Booking!',
+    `${emoji} New ${typeLabel} Booking!`,
     '',
-    `Sport     : ${sportLabel}`,
+    `Type      : ${typeLabel} — ${courtLabel}`,
+    `Location  : ${locationLabel}`,
     `Date      : ${formatDate(booking.date)}`,
     `Start     : ${formatTime(booking.start_time)}`,
     `End       : ${formatTime(booking.end_time)}`,

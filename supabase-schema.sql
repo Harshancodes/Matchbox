@@ -1,5 +1,5 @@
 -- ============================================================
--- Matchbox Sports Ground — Supabase Schema
+-- Matchbox Sports Ground — Supabase Schema (v2)
 -- Run this entire file in the Supabase SQL Editor
 -- ============================================================
 
@@ -7,7 +7,9 @@
 CREATE TABLE IF NOT EXISTS bookings (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   booking_id      TEXT UNIQUE NOT NULL,
-  sport           TEXT NOT NULL CHECK (sport IN ('cricket', 'football', 'badminton')),
+  category        TEXT NOT NULL CHECK (category IN ('ground', 'pickleball')),
+  location        TEXT NOT NULL CHECK (location IN ('vijaynagar', 'hebbal')),
+  court_type      TEXT NOT NULL CHECK (court_type IN ('full', 'left_half', 'right_half', 'court_1', 'court_2', 'court_3', 'court_4')),
   date            DATE NOT NULL,
   start_time      TIME NOT NULL,
   end_time        TIME NOT NULL,
@@ -21,7 +23,9 @@ CREATE TABLE IF NOT EXISTS bookings (
 -- Blocked slots table (admin-managed)
 CREATE TABLE IF NOT EXISTS blocked_slots (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  sport       TEXT NOT NULL CHECK (sport IN ('cricket', 'football', 'badminton')),
+  category    TEXT NOT NULL CHECK (category IN ('ground', 'pickleball')),
+  location    TEXT NOT NULL CHECK (location IN ('vijaynagar', 'hebbal')),
+  court_type  TEXT NOT NULL CHECK (court_type IN ('full', 'left_half', 'right_half', 'court_1', 'court_2', 'court_3', 'court_4')),
   date        DATE NOT NULL,
   start_time  TIME NOT NULL,
   end_time    TIME NOT NULL,
@@ -29,10 +33,10 @@ CREATE TABLE IF NOT EXISTS blocked_slots (
   created_at  TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Indexes for common query patterns
-CREATE INDEX IF NOT EXISTS idx_bookings_sport_date   ON bookings (sport, date);
-CREATE INDEX IF NOT EXISTS idx_bookings_booking_id   ON bookings (booking_id);
-CREATE INDEX IF NOT EXISTS idx_blocked_sport_date    ON blocked_slots (sport, date);
+-- Indexes
+CREATE INDEX IF NOT EXISTS idx_bookings_cat_loc_date   ON bookings (category, location, date);
+CREATE INDEX IF NOT EXISTS idx_bookings_booking_id     ON bookings (booking_id);
+CREATE INDEX IF NOT EXISTS idx_blocked_cat_loc_date    ON blocked_slots (category, location, date);
 
 -- Row Level Security
 ALTER TABLE bookings      ENABLE ROW LEVEL SECURITY;

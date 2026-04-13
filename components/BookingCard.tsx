@@ -9,23 +9,31 @@ interface Props {
   showCancel?: boolean;
 }
 
-const SPORT_EMOJI: Record<string, string> = {
-  cricket: '🏏',
-  football: '⚽',
-  badminton: '🏸',
+const COURT_LABELS: Record<string, string> = {
+  full: 'Full Court',
+  left_half: 'Left Half',
+  right_half: 'Right Half',
+  court_1: 'Court 1',
+  court_2: 'Court 2',
+  court_3: 'Court 3',
+  court_4: 'Court 4',
 };
 
 export default function BookingCard({ booking, onCancel, showCancel }: Props) {
   const isCancelled = booking.status === 'cancelled';
+  const emoji = booking.category === 'pickleball' ? '🏓' : '🏟️';
+  const typeLabel = booking.category === 'pickleball' ? 'Pickleball' : 'Ground';
+  const locationLabel = booking.location.charAt(0).toUpperCase() + booking.location.slice(1);
+  const courtLabel = COURT_LABELS[booking.court_type] ?? booking.court_type;
 
   return (
     <div className={`bg-white rounded-2xl border p-4 shadow-sm ${isCancelled ? 'opacity-50' : 'border-gray-100'}`}>
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-2">
-          <span className="text-2xl">{SPORT_EMOJI[booking.sport]}</span>
+          <span className="text-2xl">{emoji}</span>
           <div>
-            <p className="font-semibold text-gray-800 capitalize">{booking.sport}</p>
-            <p className="text-xs text-gray-500">{formatDate(booking.date)}</p>
+            <p className="font-semibold text-gray-800">{typeLabel} — {courtLabel}</p>
+            <p className="text-xs text-gray-500">📍 {locationLabel} &bull; {formatDate(booking.date)}</p>
           </div>
         </div>
         <span

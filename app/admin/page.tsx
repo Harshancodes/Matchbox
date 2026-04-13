@@ -5,10 +5,31 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import BookingCard from '@/components/BookingCard';
 import AvailabilityTimeline from '@/components/AvailabilityTimeline';
-import { Booking, BlockedSlot, Sport } from '@/lib/types';
-import { getNext14Days, formatDayLabel, generateTimeSlots, addHours } from '@/lib/utils';
+import { Booking, BlockedSlot, BookingCategory, Location, CourtType } from '@/lib/types';
+import { getNext14Days, formatDayLabel, generateTimeSlots } from '@/lib/utils';
 
-const SPORTS: Sport[] = ['cricket', 'football', 'badminton'];
+const CATEGORIES: { id: BookingCategory; label: string }[] = [
+  { id: 'ground', label: 'Ground' },
+  { id: 'pickleball', label: 'Pickleball' },
+];
+
+const LOCATIONS: { id: Location; label: string }[] = [
+  { id: 'vijaynagar', label: 'Vijaynagar' },
+  { id: 'hebbal', label: 'Hebbal' },
+];
+
+const GROUND_COURTS: { id: CourtType; label: string }[] = [
+  { id: 'full', label: 'Full Court' },
+  { id: 'left_half', label: 'Left Half' },
+  { id: 'right_half', label: 'Right Half' },
+];
+
+const PICKLEBALL_COURTS: { id: CourtType; label: string }[] = [
+  { id: 'court_1', label: 'Court 1' },
+  { id: 'court_2', label: 'Court 2' },
+  { id: 'court_3', label: 'Court 3' },
+  { id: 'court_4', label: 'Court 4' },
+];
 
 export default function AdminPage() {
   const router = useRouter();
@@ -17,11 +38,13 @@ export default function AdminPage() {
 
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [blockedSlots, setBlockedSlots] = useState<BlockedSlot[]>([]);
-  const [filterSport, setFilterSport] = useState<Sport | 'all'>('all');
+  const [filterCategory, setFilterCategory] = useState<BookingCategory | 'all'>('all');
   const [filterDate, setFilterDate] = useState<string>(new Date().toISOString().split('T')[0]);
 
   // Block period form state
-  const [blockSport, setBlockSport] = useState<Sport>('cricket');
+  const [blockCategory, setBlockCategory] = useState<BookingCategory>('ground');
+  const [blockLocation, setBlockLocation] = useState<Location>('vijaynagar');
+  const [blockCourt, setBlockCourt] = useState<CourtType>('full');
   const [blockDate, setBlockDate] = useState(new Date().toISOString().split('T')[0]);
   const [blockStart, setBlockStart] = useState('06:00');
   const [blockEnd, setBlockEnd] = useState('07:00');
@@ -40,11 +63,12 @@ export default function AdminPage() {
   useEffect(() => {
     if (!authed) return;
     fetchData();
-  }, [authed, filterDate, filterSport]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authed, filterDate, filterCategory]);
 
   async function fetchData() {
     const params = new URLSearchParams({ date: filterDate });
-    if (filterSport !== 'all') params.set('sport', filterSport);
+    if (filterCategory !== 'all') params.set('category', filterCategory);
 
     const [bRes, blRes] = await Promise.all([
       fetch(`/api/admin/bookings?${params}`),
@@ -58,7 +82,7 @@ export default function AdminPage() {
 
   async function handleCancel(id: string) {
     if (!confirm('Cancel this booking?')) return;
-    await fetch(`/api/admin/cancel`, {
+    await fetch('/api/admin/cancel', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id }),
@@ -74,7 +98,7 @@ export default function AdminPage() {
     const res = await fetch('/api/admin/block', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sport: blockSport, date: blockDate, start_time: blockStart, end_time: blockEnd, reason: blockReason }),
+      body: JSON.stringify({ category: blockCategory, location: blockLocation, court_type: blockCourt, date: blockDate, start_time: blockStart, end_time: blockEnd, reason: blockReason }),
     });
     if (res.ok) {
       setBlockMsg('Period blocked successfully');
@@ -97,7 +121,8 @@ export default function AdminPage() {
 
   const days = getNext14Days();
   const slots = generateTimeSlots();
-  const todayBookings = bookings.filter((b) => b.date === filterDate);
+  const filteredBookings = bookings.filter((b) => b.date === filterDate);
+  const blockCourtOptions = blockCategory === 'pickleball' ? PICKLEBALL_COURTS : GROUND_COURTS;
 
   return (
     <div className="space-y-6">
@@ -122,38 +147,40 @@ export default function AdminPage() {
             </select>
           </div>
           <div>
-            <label className="block text-xs text-gray-500 mb-1">Sport</label>
+            <label className="block text-xs text-gray-500 mb-1">Category</label>
             <select
-              value={filterSport}
-              onChange={(e) => setFilterSport(e.target.value as Sport | 'all')}
+              value={filterCategory}
+              onChange={(e) => setFilterCategory(e.target.value as BookingCategory | 'all')}
               className="rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none"
             >
-              <option value="all">All Sports</option>
-              {SPORTS.map((s) => <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
+              <option value="all">All</option>
+              {CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
             </select>
           </div>
         </div>
       </div>
 
-      {/* Timeline per sport for selected date */}
-      {SPORTS.filter((s) => filterSport === 'all' || filterSport === s).map((sport) => (
-        <div key={sport} className="space-y-1">
-          <p className="text-sm font-medium text-gray-600 capitalize">{sport}</p>
-          <AvailabilityTimeline
-            bookings={bookings.filter((b) => b.sport === sport)}
-            blockedSlots={blockedSlots.filter((bl) => bl.sport === sport)}
-          />
-        </div>
-      ))}
+      {/* Timeline grouped by category + location */}
+      {(['ground', 'pickleball'] as BookingCategory[])
+        .filter((cat) => filterCategory === 'all' || filterCategory === cat)
+        .map((cat) => (
+          <div key={cat} className="space-y-2">
+            <p className="text-sm font-bold text-gray-700 capitalize">{cat === 'pickleball' ? '🏓 Pickleball — Hebbal' : '🏟️ Ground'}</p>
+            <AvailabilityTimeline
+              bookings={bookings.filter((b) => b.category === cat)}
+              blockedSlots={blockedSlots.filter((bl) => bl.category === cat)}
+            />
+          </div>
+        ))}
 
       {/* Bookings list */}
       <div>
-        <h3 className="font-semibold text-gray-700 mb-3">Bookings ({todayBookings.length})</h3>
-        {todayBookings.length === 0 ? (
+        <h3 className="font-semibold text-gray-700 mb-3">Bookings ({filteredBookings.length})</h3>
+        {filteredBookings.length === 0 ? (
           <p className="text-gray-400 text-sm">No bookings for this date.</p>
         ) : (
           <div className="space-y-3">
-            {todayBookings.map((b) => (
+            {filteredBookings.map((b) => (
               <BookingCard key={b.id} booking={b} onCancel={handleCancel} showCancel />
             ))}
           </div>
@@ -166,13 +193,33 @@ export default function AdminPage() {
         <form onSubmit={handleBlock} className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Sport</label>
+              <label className="block text-xs text-gray-500 mb-1">Category</label>
               <select
-                value={blockSport}
-                onChange={(e) => setBlockSport(e.target.value as Sport)}
+                value={blockCategory}
+                onChange={(e) => { setBlockCategory(e.target.value as BookingCategory); setBlockCourt('full'); }}
                 className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none"
               >
-                {SPORTS.map((s) => <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
+                {CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Location</label>
+              <select
+                value={blockLocation}
+                onChange={(e) => setBlockLocation(e.target.value as Location)}
+                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none"
+              >
+                {LOCATIONS.map((l) => <option key={l.id} value={l.id}>{l.label}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Court</label>
+              <select
+                value={blockCourt}
+                onChange={(e) => setBlockCourt(e.target.value as CourtType)}
+                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none"
+              >
+                {blockCourtOptions.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
               </select>
             </div>
             <div>

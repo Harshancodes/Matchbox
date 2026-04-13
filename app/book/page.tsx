@@ -7,13 +7,25 @@ import DatePicker from '@/components/DatePicker';
 import TimeRangePicker from '@/components/TimeRangePicker';
 import AvailabilityTimeline from '@/components/AvailabilityTimeline';
 import BookingForm from '@/components/BookingForm';
-import { Sport, Booking, BlockedSlot } from '@/lib/types';
+import { BookingCategory, Location, CourtType, Booking, BlockedSlot } from '@/lib/types';
 import { addHours, formatDate, formatTime } from '@/lib/utils';
+
+const COURT_LABELS: Record<string, string> = {
+  full: 'Full Court',
+  left_half: 'Left Half',
+  right_half: 'Right Half',
+  court_1: 'Court 1',
+  court_2: 'Court 2',
+  court_3: 'Court 3',
+  court_4: 'Court 4',
+};
 
 function BookPage() {
   const router = useRouter();
   const params = useSearchParams();
-  const sport = params.get('sport') as Sport | null;
+  const category = params.get('category') as BookingCategory | null;
+  const location = params.get('location') as Location | null;
+  const courtType = params.get('court') as CourtType | null;
 
   const [date, setDate] = useState<string | null>(null);
   const [startTime, setStartTime] = useState<string | null>(null);
@@ -24,17 +36,15 @@ function BookPage() {
   const [loading, setLoading] = useState(false);
   const [fetchingSlots, setFetchingSlots] = useState(false);
 
-  // Redirect if no sport selected
   useEffect(() => {
-    if (!sport) router.replace('/');
-  }, [sport, router]);
+    if (!category || !location || !courtType) router.replace('/');
+  }, [category, location, courtType, router]);
 
-  // Fetch existing bookings when sport + date changes
   const fetchSlots = useCallback(async () => {
-    if (!sport || !date) return;
+    if (!category || !location || !courtType || !date) return;
     setFetchingSlots(true);
     try {
-      const res = await fetch(`/api/bookings?sport=${sport}&date=${date}`);
+      const res = await fetch(`/api/bookings?category=${category}&location=${location}&court=${courtType}&date=${date}`);
       const data = await res.json();
       setBookings(data.bookings ?? []);
       setBlockedSlots(data.blockedSlots ?? []);
@@ -43,11 +53,10 @@ function BookPage() {
     } finally {
       setFetchingSlots(false);
     }
-  }, [sport, date]);
+  }, [category, location, courtType, date]);
 
   useEffect(() => { fetchSlots(); }, [fetchSlots]);
 
-  // Check overlap whenever start/duration/bookings change
   useEffect(() => {
     if (!startTime || !duration) { setOverlap(false); return; }
     const newStart = toMins(startTime);
@@ -64,8 +73,7 @@ function BookPage() {
       })),
     ];
 
-    const hasOverlap = allSlots.some((s) => newStart < s.end && newEnd > s.start);
-    setOverlap(hasOverlap);
+    setOverlap(allSlots.some((s) => newStart < s.end && newEnd > s.start));
   }, [startTime, duration, bookings, blockedSlots]);
 
   function toMins(t: string) {
@@ -74,14 +82,14 @@ function BookPage() {
   }
 
   async function handleSubmit(name: string, phone: string) {
-    if (!sport || !date || !startTime || !duration) return;
+    if (!category || !location || !courtType || !date || !startTime || !duration) return;
     setLoading(true);
     try {
       const endTime = addHours(startTime, duration);
       const res = await fetch('/api/bookings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sport, date, start_time: startTime, end_time: endTime, duration_hours: duration, name, phone }),
+        body: JSON.stringify({ category, location, court_type: courtType, date, start_time: startTime, end_time: endTime, duration_hours: duration, name, phone }),
       });
       const data = await res.json();
       if (res.ok) {
@@ -96,15 +104,33 @@ function BookPage() {
     }
   }
 
-  const sportLabel = sport ? sport.charAt(0).toUpperCase() + sport.slice(1) : '';
+  const courtLabel = courtType ? COURT_LABELS[courtType] : '';
+  const locationLabel = location ? location.charAt(0).toUpperCase() + location.slice(1) : '';
   const endTime = startTime && duration ? addHours(startTime, duration) : null;
   const canSubmit = !!date && !!startTime && !!duration && !overlap;
+
+  const pageTitle = category === 'pickleball'
+    ? `Pickleball — ${courtLabel}`
+    : `Ground — ${courtLabel} · ${locationLabel}`;
 
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-2">
         <button onClick={() => router.back()} className="text-gray-400 hover:text-gray-600 text-sm cursor-pointer">&larr; Back</button>
-        <h2 className="text-xl font-bold text-gray-800">Book {sportLabel}</h2>
+        <h2 className="text-lg font-bold text-gray-800">{pageTitle}</h2>
+      </div>
+
+      {/* Booking summary chip */}
+      <div className="flex flex-wrap gap-2">
+        <span className="bg-green-100 text-green-800 text-xs font-medium px-3 py-1 rounded-full">
+          {category === 'pickleball' ? '🏓 Pickleball' : '🏟️ Ground'}
+        </span>
+        <span className="bg-gray-100 text-gray-700 text-xs font-medium px-3 py-1 rounded-full">
+          📍 {locationLabel}
+        </span>
+        <span className="bg-gray-100 text-gray-700 text-xs font-medium px-3 py-1 rounded-full">
+          {courtLabel}
+        </span>
       </div>
 
       {/* Step 1: Date */}
@@ -151,7 +177,7 @@ function BookPage() {
       {date && startTime && duration && !overlap && (
         <div className="bg-green-50 border border-green-200 rounded-2xl p-4 text-sm text-green-800 space-y-1">
           <p className="font-semibold text-green-700 mb-1">Booking Summary</p>
-          <p><span className="text-green-600">Sport:</span> {sportLabel}</p>
+          <p><span className="text-green-600">Type:</span> {pageTitle}</p>
           <p><span className="text-green-600">Date:</span> {formatDate(date)}</p>
           <p><span className="text-green-600">Time:</span> {formatTime(startTime)} – {endTime ? formatTime(endTime + ':00') : ''}</p>
           <p><span className="text-green-600">Duration:</span> {duration} hour{duration !== 1 ? 's' : ''}</p>
